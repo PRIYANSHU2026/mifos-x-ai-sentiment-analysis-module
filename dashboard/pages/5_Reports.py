@@ -60,7 +60,10 @@ def create_pdf(df):
         pdf.ln(5)
     
     # Return as bytes
-    return pdf.output(dest='S').encode('latin-1')
+    output = pdf.output(dest='S')
+    if isinstance(output, (bytes, bytearray)):
+        return bytes(output)
+    return output.encode('latin-1')
 
 with st.container():
     st.markdown("<div class='mifos-container'>", unsafe_allow_html=True)

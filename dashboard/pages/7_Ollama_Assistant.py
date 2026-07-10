@@ -38,6 +38,25 @@ try:
 except:
     ollama_model = "gemma2:2b"
 
+# Auto-detect available model and provide selection
+local_models = [ollama_model]
+try:
+    tags_res = requests.get("http://localhost:11434/api/tags", timeout=2)
+    if tags_res.status_code == 200:
+        fetched_models = [m['name'] for m in tags_res.json().get('models', [])]
+        if fetched_models:
+            local_models = fetched_models
+            if ollama_model not in local_models:
+                ollama_model = local_models[0]
+except:
+    pass
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🦙 Assistant Model")
+selected_model_idx = local_models.index(ollama_model) if ollama_model in local_models else 0
+ollama_model = st.sidebar.selectbox("Select Language Model", local_models, index=selected_model_idx)
+
+
 # ─── LEFT SIDEBAR: HISTORY & SEARCH ────────────────────────────────
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🗂️ Conversations")
@@ -131,6 +150,8 @@ with col_right:
 with col_center:
     st.markdown("<h2 style='color:#1F4E79;'>💬 Copilot Workspace</h2>", unsafe_allow_html=True)
     
+    query_mode = st.radio("Query Mode", ["🟢 Live Context", "🌐 General Query"], horizontal=True, help="Select whether to include the live applicant context in the query.")
+
     # Render messages
     if not messages:
         st.info("Start a conversation below.")
@@ -147,20 +168,23 @@ with col_center:
     if qa_col3.button("System Architecture", use_container_width=True): quick_prompt = "Explain the system architecture."
     if qa_col4.button("Risk Analysis", use_container_width=True): quick_prompt = "What factors are driving the current risk score?"
 
-    def generate_response(prompt_text):
+    def generate_response(prompt_text, mode):
         # 1. Retrieve RAG Context
         rag_context = kb.search(prompt_text, n_results=2)
         
         # 2. Build System Prompt based on role
         if role == "Customer":
-            sys_msg = "You are a polite AI Banking Assistant. Answer simply. Do not use technical RL jargon. Use simple financial terms."
+            sys_msg = "You are a polite AI Banking Assistant. Answer simply but with critical depth and insight. Do not use technical RL jargon. Use simple financial terms."
         elif role == "Loan Officer":
-            sys_msg = "You are an AI Assistant for Loan Officers. Explain predictions highlighting risk factors, debt ratio, and ensemble model confidence."
+            sys_msg = "You are an AI Assistant for Loan Officers. Explain predictions highlighting risk factors, debt ratio, and ensemble model confidence with critical depth and rigorous analysis."
         else:
-            sys_msg = "You are a technical AI Administrator. Answer deeply about RL algorithms, FastAPI, and system architecture."
+            sys_msg = "You are a technical AI Administrator. Answer with critical depth and exhaustive detail about RL algorithms, FastAPI, and system architecture."
             
         # 3. Inject Right-Panel Context
-        sys_msg += f"\n\nCURRENT APPLICANT CONTEXT:\n{json.dumps(latest_app, indent=2)}\n" if latest_app else ""
+        if mode == "🟢 Live Context" and latest_app:
+            sys_msg += f"\n\nCURRENT APPLICANT CONTEXT:\n{json.dumps(latest_app, indent=2)}\n"
+            sys_msg += "\nPlease analyze the above Live Context in critical depth in your response.\n"
+            
         sys_msg += f"\n\nPROJECT KNOWLEDGE BASE:\n{rag_context}\n" if rag_context else ""
         
         full_prompt = f"{sys_msg}\n\nUser: {prompt_text}\nAssistant:"
@@ -193,7 +217,7 @@ with col_center:
             requests.post(f"{API_URL}/chat/messages/{st.session_state.active_conv_id}", json={"role": "user", "content": active_prompt})
             
         with st.chat_message("assistant"):
-            full_res = st.write_stream(generate_response(active_prompt))
+            full_res = st.write_stream(generate_response(active_prompt, query_mode))
             
         # Save assistant message
         if st.session_state.active_conv_id:

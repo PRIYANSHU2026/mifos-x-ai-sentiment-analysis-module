@@ -38,7 +38,21 @@ except Exception as e:
 st.markdown("### 🦙 LLM Configuration")
 st.markdown("Select the local model used for Explainability and the AI Banking Assistant.")
 
-models = ["gemma2:2b", "qwen", "mistral", "gemma2:2b", "deepseek", "phi"]
+models = ["gemma2:2b", "qwen", "mistral", "deepseek", "phi"]
+
+# Auto-detect available models from local Ollama
+try:
+    tags_res = requests.get("http://localhost:11434/api/tags", timeout=2)
+    if tags_res.status_code == 200:
+        local_models = [m['name'] for m in tags_res.json().get('models', [])]
+        if local_models:
+            # Prioritize locally available models
+            models = list(dict.fromkeys(local_models + models))
+            if current_model not in local_models:
+                current_model = local_models[0]
+except:
+    pass
+
 model_idx = models.index(current_model) if current_model in models else 0
 
 selected_model = st.selectbox("Active AI Model", models, index=model_idx)

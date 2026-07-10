@@ -29,14 +29,25 @@ def generate_explanation(applicant_data: dict, prediction_data: dict, model=DEFA
     Return ONLY valid JSON.
     """
 
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "format": "json"
-    }
-
     try:
+        # Auto-detect available model if the requested one is missing
+        try:
+            tags_res = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if tags_res.status_code == 200:
+                local_models = [m['name'] for m in tags_res.json().get('models', [])]
+                if local_models and model not in local_models:
+                    model = local_models[0]
+                    logger.info(f"Model not found locally, falling back to {model}")
+        except:
+            pass
+
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json"
+        }
+
         response = requests.post(OLLAMA_URL, json=payload, timeout=30)
         if response.status_code == 200:
             result = response.json()
