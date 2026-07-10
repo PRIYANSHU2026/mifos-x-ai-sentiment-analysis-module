@@ -1,0 +1,174 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Base Styles */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+    background-color: #F9FAFB;
+}
+
+/* Sidebar Override */
+[data-testid="stSidebar"] {
+    background-color: #1F4E79;
+    color: white;
+}
+[data-testid="stSidebar"] * {
+    color: white !important;
+}
+[data-testid="stSidebarNav"] span {
+    color: white !important;
+    font-weight: 500;
+}
+[data-testid="stSidebarNav"] a {
+    color: white !important;
+}
+[data-testid="stSidebarNav"] a:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-testid="stSidebar"] .stRadio label {
+    color: white !important;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: #1F4E79;
+    font-weight: 700;
+}
+
+/* Custom Containers */
+.mifos-container {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    margin-bottom: 24px;
+    border: 1px solid #E0E0E0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mifos-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(0,0,0,0.08);
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 24px;
+    box-shadow: 0 8px 32px 0 rgba(31, 78, 121, 0.1);
+}
+
+/* Buttons */
+.stButton>button {
+    background-color: #2F80ED;
+    color: white;
+    border-radius: 8px;
+    padding: 10px 24px;
+    border: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(47, 128, 237, 0.3);
+}
+
+.stButton>button:hover {
+    background-color: #1F4E79;
+    box-shadow: 0 4px 12px rgba(31, 78, 121, 0.4);
+    transform: translateY(-1px);
+    color: white;
+}
+
+/* Action Buttons (Approve / Reject) */
+.btn-approve {
+    background-color: #27AE60 !important;
+    box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3) !important;
+}
+.btn-approve:hover {
+    background-color: #219653 !important;
+}
+.btn-reject {
+    background-color: #E74C3C !important;
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3) !important;
+}
+.btn-reject:hover {
+    background-color: #C0392B !important;
+}
+
+/* Gradient Header */
+.gradient-header {
+    background: linear-gradient(135deg, #1F4E79 0%, #2F80ED 100%);
+    color: white;
+    padding: 40px;
+    border-radius: 16px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(47, 128, 237, 0.2);
+    text-align: center;
+}
+
+.gradient-header h1 {
+    color: white;
+    margin-bottom: 10px;
+    font-size: 2.5rem;
+}
+
+.gradient-header p {
+    color: #E0E0E0;
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Metric Cards HTML Injection */
+.mifos-metric {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    border: 1px solid #E0E0E0;
+}
+.mifos-metric:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+/* Badges */
+.badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
+}
+.badge-success { background: #E8F5E9; color: #27AE60; border: 1px solid #A5D6A7; }
+.badge-danger { background: #FFEBEE; color: #E74C3C; border: 1px solid #EF9A9A; }
+.badge-warning { background: #FFF8E1; color: #F2C94C; border: 1px solid #FFE082; }
+.badge-info { background: #E3F2FD; color: #2F80ED; border: 1px solid #90CAF9; }
+
+/* Dataframes / Tables */
+.stDataFrame {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #E0E0E0;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.animate-slide-up {
+    animation: slideUp 0.6s ease-out;
+}
