@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Mac OS folder attributes
+.DS_Store
+
+# SQLite databases (if they should not be version controlled)
+# *.db
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Pytest and coverage
+.pytest_cache/
+.coverage
+htmlcov/
