@@ -3,12 +3,20 @@ import requests
 import os
 import pandas as pd
 from io import BytesIO
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from utils.auth import render_sidebar_auth, get_current_role, api_request, require_role
 try:
     from fpdf import FPDF
 except ImportError:
     FPDF = None
 
 st.set_page_config(page_title="Reports & Exports", page_icon="📄", layout="wide")
+
+render_sidebar_auth()
+require_role(["Administrator", "Loan Officer", "Risk Analyst"])
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "css", "style.css")
@@ -24,8 +32,8 @@ st.markdown("Download comprehensive portfolio and decision reports in PDF, CSV, 
 
 def fetch_data():
     try:
-        apps = requests.get(f"{API_URL}/applications").json()
-        decs = requests.get(f"{API_URL}/loan-decisions").json()
+        apps = api_request("GET", "applications").json()
+        decs = api_request("GET", "loan-decisions").json()
         return apps, decs
     except:
         return [], []

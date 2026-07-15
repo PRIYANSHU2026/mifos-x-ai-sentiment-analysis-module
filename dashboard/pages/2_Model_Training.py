@@ -8,9 +8,17 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from utils.auth import render_sidebar_auth, get_current_role, api_request, require_role
+
 API_URL = "http://127.0.0.1:8000/api"
 
 st.set_page_config(page_title="Model Training Studio", page_icon="🧠", layout="wide")
+
+render_sidebar_auth()
+require_role(["Administrator", "Loan Officer", "Risk Analyst"])
 
 # Custom CSS for Enterprise look
 st.markdown("""
@@ -41,7 +49,7 @@ st.markdown("Automatically configures Reinforcement Learning models based on you
 # --- Session State ---
 if 'hardware_info' not in st.session_state:
     try:
-        res = requests.get(f"{API_URL}/hardware")
+        res = api_request("GET", "hardware")
         if res.status_code == 200:
             st.session_state.hardware_info = res.json()
         else:
@@ -57,7 +65,7 @@ if 'active_experiment_id' not in st.session_state:
 # ==========================================
 st.markdown("### 🗄️ Loaded Prediction Models")
 try:
-    models_res = requests.get(f"{API_URL}/models")
+    models_res = api_request("GET", "models")
     if models_res.status_code == 200:
         model_status = models_res.json()
 
@@ -90,7 +98,7 @@ try:
         st.markdown("")
         if st.button("🔄 Reload All Models into Memory"):
             try:
-                res = requests.post(f"{API_URL}/models/reload-all")
+                res = api_request("POST", "models/reload-all")
                 if res.status_code == 200:
                     st.success("All models reloaded from disk!")
                     time.sleep(1)
@@ -133,7 +141,7 @@ with tab_quick:
         if st.button("▶ Start Training Job", key="quick_train_btn"):
             with st.spinner(f"Initiating training for {quick_model}..."):
                 try:
-                    response = requests.post(f"{API_URL}/train?model_type={quick_model}&total_timesteps={quick_timesteps}")
+                    response = api_request("POST", "train?model_type={quick_model}&total_timesteps={quick_timesteps}")
                     if response.status_code == 200:
                         st.success(f"✅ Training started for **{quick_model}** ({quick_timesteps} timesteps). The model will be automatically loaded for predictions once training completes.")
                         st.info("💡 Refresh this page after training finishes to see the updated model status.")
@@ -145,8 +153,8 @@ with tab_quick:
     st.markdown("---")
     st.markdown("### 📊 Training History")
     try:
-        hist_res = requests.get(f"{API_URL}/history")
-        comp_res = requests.get(f"{API_URL}/model-comparison")
+        hist_res = api_request("GET", "history")
+        comp_res = api_request("GET", "model-comparison")
 
         col_left, col_right = st.columns([3, 2])
 
@@ -252,7 +260,7 @@ with tab2:
     # 1. Project Selection
     st.markdown("#### 1. Select Workspace")
     try:
-        proj_res = requests.get(f"{API_URL}/training/projects").json()
+        proj_res = api_request("GET", "training/projects").json()
     except:
         proj_res = []
         
@@ -267,7 +275,7 @@ with tab2:
             new_name = st.text_input("Project Name")
             new_desc = st.text_input("Description")
             if st.form_submit_button("Create Project"):
-                res = requests.post(f"{API_URL}/training/projects", json={"name": new_name, "description": new_desc})
+                res = api_request("POST", "training/projects", json={"name": new_name, "description": new_desc})
                 if res.status_code == 200:
                     st.success("Project created!")
                     time.sleep(1)
@@ -312,7 +320,7 @@ with tab2:
                     "schema_mapping": json.dumps(reverse_mapping),
                     "row_count": len(df)
                 }
-                res = requests.post(f"{API_URL}/training/datasets", json=payload)
+                res = api_request("POST", "training/datasets", json=payload)
                 if res.status_code == 200:
                     import sys
                     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -335,7 +343,7 @@ with tab3:
         with c1:
             algorithm = st.selectbox("RL Algorithm", ["PPO", "DQN", "DDQN", "SAC"])
             if project_id:
-                dsets = requests.get(f"{API_URL}/training/datasets?project_id={project_id}").json()
+                dsets = api_request("GET", "training/datasets?project_id={project_id}").json()
                 dset_opts = {d["filename"]: d["id"] for d in dsets}
                 dataset_id = st.selectbox("Dataset", list(dset_opts.keys()))
             else:
@@ -363,7 +371,7 @@ with tab3:
                         "total_timesteps": total_timesteps
                     })
                 }
-                res = requests.post(f"{API_URL}/training/experiments", json=payload)
+                res = api_request("POST", "training/experiments", json=payload)
                 if res.status_code == 200:
                     st.session_state.active_experiment_id = res.json()["id"]
                     st.success(f"Job launched! View progress in Live Dashboard.")
@@ -379,7 +387,7 @@ with tab4:
     exp_id = st.session_state.active_experiment_id
     if exp_id:
         try:
-            status = requests.get(f"{API_URL}/training/experiments/{exp_id}/status").json()
+            status = api_request("GET", "training/experiments/{exp_id}/status").json()
             
             st.markdown(f"### Status: **{status['status']}** | Progress: **{status['progress']*100:.1f}%**")
             st.progress(status["progress"])
@@ -398,7 +406,7 @@ with tab4:
             
             if status["status"] == "Running":
                 if st.button("⏹️ Stop Training"):
-                    requests.post(f"{API_URL}/training/experiments/{exp_id}/cancel")
+                    api_request("POST", "training/experiments/{exp_id}/cancel")
                     st.rerun()
                 time.sleep(2)
                 st.rerun()
@@ -417,7 +425,7 @@ with tab5:
     st.subheader("Experiment Tracking & History")
     if project_id:
         try:
-            exps = requests.get(f"{API_URL}/training/experiments?project_id={project_id}").json()
+            exps = api_request("GET", "training/experiments?project_id={project_id}").json()
             if exps:
                 df_exps = pd.DataFrame(exps)
                 df_exps['hyperparameters'] = df_exps['hyperparameters'].apply(lambda x: str(json.loads(x)))
@@ -429,7 +437,7 @@ with tab5:
             
     st.markdown("### Old Training History (Legacy)")
     try:
-        hist_res = requests.get(f"{API_URL}/history")
+        hist_res = api_request("GET", "history")
         if hist_res.status_code == 200 and hist_res.json() != "NILL":
             data = hist_res.json()
             if isinstance(data, list) and len(data) > 0:

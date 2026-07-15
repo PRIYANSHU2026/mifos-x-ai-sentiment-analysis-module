@@ -6,9 +6,12 @@ import sys
 
 # Ensure the parent directory is in the python path to import utils
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from utils.auth import render_sidebar_auth, get_current_role
+from utils.auth import render_sidebar_auth, get_current_role, api_request, require_role
 
 st.set_page_config(page_title="Loan Processing", page_icon="📝", layout="wide")
+
+render_sidebar_auth()
+require_role(["Customer", "Loan Officer", "Administrator", "Risk Analyst"])
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "css", "style.css")
@@ -20,7 +23,6 @@ load_css()
 API_URL = "http://127.0.0.1:8000/api"
 
 st.sidebar.markdown("### 🏦 **MIFOS X** AI Platform")
-render_sidebar_auth()
 role = get_current_role()
 
 # Only Customers and Loan Officers can process new loans
@@ -92,7 +94,7 @@ if submitted:
     }
 
     try:
-        response = requests.post(f"{API_URL}/predict", json=payload)
+        response = api_request("POST", "predict", json=payload)
         
         status_text.markdown("#### 🦙 Generating AI Explanations...")
         progress_bar.progress(90)
