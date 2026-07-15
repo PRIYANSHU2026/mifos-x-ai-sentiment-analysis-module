@@ -6,9 +6,12 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from utils.auth import render_sidebar_auth, get_current_role
+from utils.auth import render_sidebar_auth, get_current_role, api_request, require_role
 
 st.set_page_config(page_title="What-If Simulator", page_icon="🎛️", layout="wide")
+
+render_sidebar_auth()
+require_role(["Administrator", "Loan Officer", "Risk Analyst"])
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "css", "style.css")
@@ -20,7 +23,6 @@ load_css()
 API_URL = "http://127.0.0.1:8000/api"
 
 st.sidebar.markdown("### 🏦 **MIFOS X** AI Platform")
-render_sidebar_auth()
 role = get_current_role()
 
 if role not in ["Risk Analyst", "Administrator", "Loan Officer"]:
@@ -62,7 +64,7 @@ with col1:
 with col2:
     st.markdown("### 📈 Live RL Inference")
     try:
-        response = requests.post(f"{API_URL}/predict", json=payload)
+        response = api_request("POST", "predict", json=payload)
         if response.status_code == 200:
             result = response.json()
             rec = result.get('recommended_pricing', {})

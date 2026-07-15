@@ -4,9 +4,12 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from utils.auth import render_sidebar_auth, get_current_role
+from utils.auth import render_sidebar_auth, get_current_role, api_request, require_role
 
 st.set_page_config(page_title="Platform Settings", page_icon="⚙️", layout="wide")
+
+render_sidebar_auth()
+require_role(["Customer", "Loan Officer", "Risk Analyst", "Administrator"])
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "css", "style.css")
@@ -18,7 +21,6 @@ load_css()
 API_URL = "http://127.0.0.1:8000/api"
 
 st.sidebar.markdown("### 🏦 **MIFOS X** AI Platform")
-render_sidebar_auth()
 role = get_current_role()
 
 st.markdown("<h2 style='color:#1F4E79;'>⚙️ Platform Settings</h2>", unsafe_allow_html=True)
@@ -27,7 +29,7 @@ st.markdown("<h2 style='color:#1F4E79;'>⚙️ Platform Settings</h2>", unsafe_a
 current_model = "gemma2:2b"
 current_theme = "light"
 try:
-    res = requests.get(f"{API_URL}/settings/{role}")
+    res = api_request("GET", "settings/{role}")
     if res.status_code == 200:
         data = res.json()
         current_model = data.get("ollama_model", "gemma2:2b")
@@ -69,7 +71,7 @@ if st.button("💾 Save Settings", type="primary"):
         "theme": selected_theme
     }
     try:
-        post_res = requests.post(f"{API_URL}/settings", json=payload)
+        post_res = api_request("POST", "settings", json=payload)
         if post_res.status_code == 200:
             st.success("Settings saved successfully!")
         else:

@@ -1,11 +1,13 @@
-from fastapi import FastAPI, Depends, BackgroundTasks, HTTPException
+from fastapi import FastAPI, Depends, BackgroundTasks, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Dict, Any, Optional
 from database.database import engine, SessionLocal, Base, get_db
 from database import models
 from backend.schemas import schemas
+from backend import auth
 from services import training_service
 from services import prediction_service
 from ollama.explain import generate_explanation
@@ -50,6 +52,36 @@ def startup_event():
     logger.info("Database tables created/verified.")
     # Auto-detect and load any trained RL models from disk
     prediction_service.load_all_models()
+
+# ─── Auth API ───────────────────────────────────────────────────────
+
+@app.post("/api/token", response_model=schemas.Token)
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    if not user or not auth.verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = auth.create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/api/users/register", response_model=schemas.UserOut)
+def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    hashed_password = auth.get_password_hash(user.password)
+    db_user = models.User(username=user.username, hashed_password=hashed_password, role=user.role)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@app.get("/api/users/me", response_model=schemas.UserOut)
+def read_users_me(current_user: models.User = Depends(auth.get_current_user)):
+    return current_user
 
 # ─── Training Studio API ────────────────────────────────────────────
 
@@ -97,7 +129,7 @@ def get_experiments(project_id: Optional[int] = None, db: Session = Depends(get_
     return query.order_by(models.TrainingExperiment.start_time.desc()).all()
 
 @app.post("/api/training/experiments", response_model=schemas.TrainingExperimentOut)
-def create_experiment(exp: schemas.TrainingExperimentCreate, db: Session = Depends(get_db)):
+def create_experiment(exp: schemas.TrainingExperimentCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.require_officer)):
     # 1. Create record in DB
     db_exp = models.TrainingExperiment(**exp.model_dump())
     db.add(db_exp)
@@ -156,7 +188,7 @@ def train_model_quick(
 
 # ─── Prediction ───────────────────────────────────────────────────
 @app.post("/api/predict")
-def predict_loan(application: schemas.LoanApplicationCreate, db: Session = Depends(get_db)):
+def predict_loan(application: schemas.LoanApplicationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     # Save application
     db_app = models.LoanApplication(**application.model_dump())
     db.add(db_app)
@@ -242,7 +274,7 @@ def get_models():
     return sanitize_nill(prediction_service.get_model_status())
 
 @app.post("/api/models/reload")
-def reload_model(model_type: str):
+def reload_model(model_type: str, current_user: models.User = Depends(auth.require_admin)):
     """Manually reload a specific model from disk into the prediction cache."""
     if model_type not in ["PPO", "DQN", "DDQN", "SAC"]:
         raise HTTPException(status_code=400, detail="Invalid model type.")

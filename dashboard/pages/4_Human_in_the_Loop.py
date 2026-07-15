@@ -6,9 +6,12 @@ import sys
 
 # Ensure the parent directory is in the python path to import utils
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from utils.auth import render_sidebar_auth, get_current_role
+from utils.auth import render_sidebar_auth, get_current_role, api_request, require_role
 
 st.set_page_config(page_title="Human Review", page_icon="🧑‍💼", layout="wide")
+
+render_sidebar_auth()
+require_role(["Administrator", "Loan Officer", "Risk Analyst"])
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "css", "style.css")
@@ -20,7 +23,6 @@ load_css()
 API_URL = "http://127.0.0.1:8000/api"
 
 st.sidebar.markdown("### 🏦 **MIFOS X** AI Platform")
-render_sidebar_auth()
 role = get_current_role()
 
 if role not in ["Loan Officer", "Administrator"]:
@@ -32,7 +34,7 @@ st.markdown("Review AI predictions and finalize loan decisions.")
 
 # Fetch applications
 try:
-    apps_res = requests.get(f"{API_URL}/applications")
+    apps_res = api_request("GET", "applications")
     if apps_res.status_code == 200:
         data = apps_res.json()
         if data == "NILL" or not data:
@@ -88,7 +90,7 @@ try:
                             "approved_interest_rate": final_rate if final_decision == "Approve" else None,
                             "officer_comments": comments
                         }
-                        dec_res = requests.post(f"{API_URL}/loan-decisions", json=payload)
+                        dec_res = api_request("POST", "loan-decisions", json=payload)
                         if dec_res.status_code == 200:
                             st.success("Decision saved successfully!")
                         else:

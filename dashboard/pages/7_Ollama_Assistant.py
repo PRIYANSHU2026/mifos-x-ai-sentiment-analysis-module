@@ -6,10 +6,13 @@ import sys
 from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from utils.auth import render_sidebar_auth, get_current_role
+from utils.auth import render_sidebar_auth, get_current_role, api_request, require_role
 from chatbot.rag import kb
 
 st.set_page_config(page_title="AI Chat Assistant", page_icon="💬", layout="wide")
+
+render_sidebar_auth()
+require_role(["Customer", "Loan Officer", "Risk Analyst", "Administrator"])
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "css", "style.css")
@@ -27,12 +30,11 @@ if "kb_indexed" not in st.session_state:
     st.session_state.kb_indexed = True
 
 st.sidebar.markdown("### 🏦 **MIFOS X** AI Platform")
-render_sidebar_auth()
 role = get_current_role()
 
 # Fetch settings for this role
 try:
-    set_res = requests.get(f"{API_URL}/settings/{role}")
+    set_res = api_request("GET", "settings/{role}")
     settings = set_res.json() if set_res.status_code == 200 else {"ollama_model": "gemma2:2b"}
     ollama_model = settings.get("ollama_model", "gemma2:2b")
 except:
@@ -63,7 +65,7 @@ st.sidebar.markdown("### 🗂️ Conversations")
 
 if st.sidebar.button("➕ New Chat", use_container_width=True):
     try:
-        new_conv = requests.post(f"{API_URL}/chat/conversations", json={"title": "New Chat", "user_role": role}).json()
+        new_conv = api_request("POST", "chat/conversations", json={"title": "New Chat", "user_role": role}).json()
         st.session_state.active_conv_id = new_conv["id"]
         st.rerun()
     except Exception as e:
@@ -72,7 +74,7 @@ if st.sidebar.button("➕ New Chat", use_container_width=True):
 search_term = st.sidebar.text_input("🔍 Search chats...")
 
 try:
-    convs = requests.get(f"{API_URL}/chat/conversations?user_role={role}").json()
+    convs = api_request("GET", "chat/conversations?user_role={role}").json()
     if isinstance(convs, list):
         for c in convs:
             if search_term.lower() in c['title'].lower():
@@ -90,7 +92,7 @@ if "active_conv_id" not in st.session_state:
     else:
         # Create a default one if none exists
         try:
-            new_conv = requests.post(f"{API_URL}/chat/conversations", json={"title": "New Chat", "user_role": role}).json()
+            new_conv = api_request("POST", "chat/conversations", json={"title": "New Chat", "user_role": role}).json()
             st.session_state.active_conv_id = new_conv["id"]
         except:
             st.session_state.active_conv_id = None
@@ -99,7 +101,7 @@ if "active_conv_id" not in st.session_state:
 messages = []
 if st.session_state.active_conv_id:
     try:
-        msgs = requests.get(f"{API_URL}/chat/messages/{st.session_state.active_conv_id}").json()
+        msgs = api_request("GET", "chat/messages/{st.session_state.active_conv_id}").json()
         if isinstance(msgs, list):
             messages = msgs
     except:
@@ -111,7 +113,7 @@ col_center, col_right = st.columns([3, 1])
 # Fetch right panel context first so it can be passed to the LLM
 latest_app = None
 try:
-    apps_res = requests.get(f"{API_URL}/applications")
+    apps_res = api_request("GET", "applications")
     if apps_res.status_code == 200 and apps_res.json() != "NILL":
         apps_list = apps_res.json()
         if isinstance(apps_list, list) and len(apps_list) > 0:
@@ -138,7 +140,7 @@ with col_right:
             
         st.markdown("---")
         try:
-            dash = requests.get(f"{API_URL}/dashboard").json()
+            dash = api_request("GET", "dashboard").json()
             st.markdown("#### System Health")
             st.markdown(f"Approval Rate: **{dash.get('approval_rate', 0)*100}%**")
             st.markdown(f"Active Models: **PPO, SAC, DQN, DDQN**")
@@ -214,13 +216,13 @@ with col_center:
         
         # Save user message
         if st.session_state.active_conv_id:
-            requests.post(f"{API_URL}/chat/messages/{st.session_state.active_conv_id}", json={"role": "user", "content": active_prompt})
+            api_request("POST", "chat/messages/{st.session_state.active_conv_id}", json={"role": "user", "content": active_prompt})
             
         with st.chat_message("assistant"):
             full_res = st.write_stream(generate_response(active_prompt, query_mode))
             
         # Save assistant message
         if st.session_state.active_conv_id:
-            requests.post(f"{API_URL}/chat/messages/{st.session_state.active_conv_id}", json={"role": "assistant", "content": full_res})
+            api_request("POST", "chat/messages/{st.session_state.active_conv_id}", json={"role": "assistant", "content": full_res})
             
         st.rerun()

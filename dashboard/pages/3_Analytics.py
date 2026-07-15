@@ -7,9 +7,12 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from utils.auth import render_sidebar_auth, get_current_role
+from utils.auth import render_sidebar_auth, get_current_role, api_request, require_role
 
 st.set_page_config(page_title="Enterprise Analytics", page_icon="📈", layout="wide")
+
+render_sidebar_auth()
+require_role(["Administrator", "Loan Officer", "Risk Analyst"])
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "css", "style.css")
@@ -21,7 +24,6 @@ load_css()
 API_URL = "http://127.0.0.1:8000/api"
 
 st.sidebar.markdown("### 🏦 **MIFOS X** AI Platform")
-render_sidebar_auth()
 role = get_current_role()
 
 if role not in ["Risk Analyst", "Administrator"]:
@@ -31,7 +33,7 @@ if role not in ["Risk Analyst", "Administrator"]:
 st.markdown("<h2 style='color:#1F4E79;'>📈 Enterprise Portfolio Analytics</h2>", unsafe_allow_html=True)
 
 try:
-    apps_res = requests.get(f"{API_URL}/applications")
+    apps_res = api_request("GET", "applications")
     if apps_res.status_code == 200 and apps_res.json() != "NILL":
         df = pd.DataFrame(apps_res.json())
         
