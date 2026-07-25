@@ -141,7 +141,7 @@ if submitted:
             r2.metric("Risk Level", risk.get('risk_level', 'N/A'))
             r3.metric("Expected Profit", f"${rec.get('expected_profit', 0)}")
             
-            st.info("ℹ️ **Next Steps:** This application has been queued for Human-in-the-Loop review by a Loan Officer.")
+            st.success("✅ **Loan application processed successfully!**")
             
         else:
             status_text.error(f"API Error: {response.text}")

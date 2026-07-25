@@ -128,3 +128,29 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class ABTestCampaignCreate(BaseModel):
+    campaign_name: str
+    model_a: str
+    model_b: str
+    split_a: int
+
+class ABTestCampaignOut(ABTestCampaignCreate):
+    id: int
+    is_active: bool
+    timestamp: datetime
+    class Config:
+        from_attributes = True
+
+class FairnessAuditLogOut(BaseModel):
+    id: int
+    model_name: str
+    feature: str
+    group_a: str
+    group_b: str
+    disparate_impact: Optional[float] = None
+    equal_opportunity_diff: Optional[float] = None
+    flagged: bool
+    timestamp: datetime
+    class Config:
+        from_attributes = True
