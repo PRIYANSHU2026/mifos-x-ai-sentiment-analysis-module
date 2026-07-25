@@ -12,6 +12,8 @@ from services import training_service
 from services import prediction_service
 from ollama.explain import generate_explanation
 import numpy as np
+import asyncio
+from analytics.fairness import run_fairness_audit
 import os
 import logging
 
@@ -46,12 +48,25 @@ def sanitize_nill(obj):
         return [sanitize_nill(i) for i in obj]
     return obj
 
+async def run_daily_fairness_audit():
+    """Background task that runs the fairness audit every 24 hours."""
+    while True:
+        try:
+            logger.info("Running daily fairness audit...")
+            run_fairness_audit()
+        except Exception as e:
+            logger.error(f"Error during daily fairness audit: {e}")
+        # Sleep for 24 hours
+        await asyncio.sleep(24 * 60 * 60)
+
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created/verified.")
     # Auto-detect and load any trained RL models from disk
     prediction_service.load_all_models()
+    # Start the background audit scheduler
+    asyncio.create_task(run_daily_fairness_audit())
 
 # ─── Auth API ───────────────────────────────────────────────────────
 
@@ -344,6 +359,30 @@ def get_applications(db: Session = Depends(get_db)):
         })
     return sanitize_nill(results)
 
+
+# ─── AB Testing API ────────────────────────────────────────────
+
+@app.post("/api/ab-test/campaigns", response_model=schemas.ABTestCampaignOut)
+def create_ab_campaign(campaign: schemas.ABTestCampaignCreate, db: Session = Depends(get_db)):
+    db_campaign = models.ABTestCampaign(**campaign.model_dump())
+    db.add(db_campaign)
+    db.commit()
+    db.refresh(db_campaign)
+    return db_campaign
+
+@app.get("/api/ab-test/campaigns", response_model=List[schemas.ABTestCampaignOut])
+def get_ab_campaigns(db: Session = Depends(get_db)):
+    return db.query(models.ABTestCampaign).order_by(models.ABTestCampaign.timestamp.desc()).all()
+
+@app.post("/api/ab-test/campaigns/{campaign_id}/toggle")
+def toggle_campaign(campaign_id: int, db: Session = Depends(get_db)):
+    campaign = db.query(models.ABTestCampaign).filter(models.ABTestCampaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    campaign.is_active = not campaign.is_active
+    db.commit()
+    return {"status": "success", "is_active": campaign.is_active}
+
 # ─── Dashboard Summary ───────────────────────────────────────────
 @app.get("/api/dashboard")
 def get_dashboard(db: Session = Depends(get_db)):
@@ -528,4 +567,16 @@ def update_settings(settings: schemas.UserSettingsUpdate, db: Session = Depends(
     db.commit()
     return {"status": "ok"}
 
+# ─── Fairness Auditing ──────────────────────────────────────────
 
+@app.get("/api/analytics/fairness-audit")
+def get_fairness_audit(db: Session = Depends(get_db)):
+    """Runs the fairness audit on demand and returns the results."""
+    # We pass the db session so we can run the query synchronously.
+    # Note that run_fairness_audit returns dict which FastAPI converts to JSON.
+    return run_fairness_audit(db)
+
+@app.get("/api/analytics/fairness-audit/history", response_model=List[schemas.FairnessAuditLogOut])
+def get_fairness_audit_history(db: Session = Depends(get_db)):
+    """Returns the historical audit logs from the database."""
+    return db.query(models.FairnessAuditLog).order_by(models.FairnessAuditLog.timestamp.desc()).all()

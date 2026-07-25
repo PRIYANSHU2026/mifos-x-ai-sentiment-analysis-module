@@ -145,3 +145,27 @@ class Checkpoint(Base):
     filepath = Column(String)
     reward = Column(Float)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+class ABTestCampaign(Base):
+    __tablename__ = "ab_test_campaigns"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_name = Column(String, index=True)
+    model_a = Column(String)
+    model_b = Column(String)
+    split_a = Column(Integer)
+    is_active = Column(Boolean, default=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+class FairnessAuditLog(Base):
+    __tablename__ = "fairness_audit_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    model_name = Column(String, index=True)
+    feature = Column(String)           # e.g. "gender", "region"
+    group_a = Column(String)           # privileged group
+    group_b = Column(String)           # unprivileged group
+    disparate_impact = Column(Float, nullable=True)
+    equal_opportunity_diff = Column(Float, nullable=True)
+    flagged = Column(Boolean, default=False)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
